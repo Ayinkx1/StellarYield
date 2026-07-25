@@ -189,7 +189,7 @@ fn test_cancel_proposal() {
         .with_mut(|li| li.timestamp = 3 * 24 * 60 * 60 + 1);
     let result = client.try_execute(&proposal_id);
     match result {
-        Err(Ok(Error::ProposalCancelled)) => {},
+        Err(Ok(Error::ProposalCancelled)) => {}
         _ => panic!("Expected ProposalCancelled"),
     }
 }
@@ -227,7 +227,7 @@ fn test_proposal_expires_after_expiry_window() {
 
     let result = client.try_execute(&proposal_id);
     match result {
-        Err(Ok(Error::ProposalExpired)) => {},
+        Err(Ok(Error::ProposalExpired)) => {}
         _ => panic!("Expected ProposalExpired"),
     }
 
@@ -278,7 +278,7 @@ fn test_dispute_then_resolve_cancel() {
         .with_mut(|li| li.timestamp = challenge_window + 1);
     let result = client.try_execute(&proposal_id);
     match result {
-        Err(Ok(Error::ProposalCancelled)) => {},
+        Err(Ok(Error::ProposalCancelled)) => {}
         _ => panic!("Expected ProposalCancelled"),
     }
 }

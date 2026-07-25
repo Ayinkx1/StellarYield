@@ -832,10 +832,7 @@ impl YieldVault {
         upgrade_impl::execute_upgrade(&env, &governance, proposal_id)
     }
 
-    pub fn finalize_upgrade(
-        env: Env,
-        proposal_id: u64,
-    ) -> Result<(), VaultError> {
+    pub fn finalize_upgrade(env: Env, proposal_id: u64) -> Result<(), VaultError> {
         upgrade_impl::finalize_upgrade(&env, proposal_id)
     }
 

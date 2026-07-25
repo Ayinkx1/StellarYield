@@ -435,10 +435,7 @@ impl SettlementContract {
         upgrade_impl::execute_upgrade(&env, &governance, proposal_id)
     }
 
-    pub fn finalize_upgrade(
-        env: Env,
-        proposal_id: u64,
-    ) -> Result<(), SettlementError> {
+    pub fn finalize_upgrade(env: Env, proposal_id: u64) -> Result<(), SettlementError> {
         upgrade_impl::finalize_upgrade(&env, proposal_id)
     }
 

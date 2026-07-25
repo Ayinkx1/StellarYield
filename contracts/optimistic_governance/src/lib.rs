@@ -1,8 +1,8 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, symbol_short, Address, BytesN, Env, String, Symbol,
-    Val, Vec,
+    contract, contracterror, contractimpl, symbol_short, Address, BytesN, Env, String, Symbol, Val,
+    Vec,
 };
 
 mod storage;
@@ -464,26 +464,15 @@ impl OptimisticGovernance {
         )
     }
 
-    pub fn cancel_upgrade(
-        env: Env,
-        governance: Address,
-        proposal_id: u64,
-    ) -> Result<(), Error> {
+    pub fn cancel_upgrade(env: Env, governance: Address, proposal_id: u64) -> Result<(), Error> {
         upgrade_impl::cancel_upgrade(&env, &governance, proposal_id)
     }
 
-    pub fn execute_upgrade(
-        env: Env,
-        governance: Address,
-        proposal_id: u64,
-    ) -> Result<(), Error> {
+    pub fn execute_upgrade(env: Env, governance: Address, proposal_id: u64) -> Result<(), Error> {
         upgrade_impl::execute_upgrade(&env, &governance, proposal_id)
     }
 
-    pub fn finalize_upgrade(
-        env: Env,
-        proposal_id: u64,
-    ) -> Result<(), Error> {
+    pub fn finalize_upgrade(env: Env, proposal_id: u64) -> Result<(), Error> {
         upgrade_impl::finalize_upgrade(&env, proposal_id)
     }
 

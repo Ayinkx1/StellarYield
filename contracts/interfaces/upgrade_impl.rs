@@ -103,9 +103,10 @@ pub fn schedule_upgrade(
     env.storage()
         .instance()
         .set(&UpgradeDataKey::UpgradeCount, &proposal_id);
-    env.storage()
-        .instance()
-        .set(&UpgradeDataKey::UpgradeStatus(proposal_id), &UpgradeProposalStatus::Scheduled);
+    env.storage().instance().set(
+        &UpgradeDataKey::UpgradeStatus(proposal_id),
+        &UpgradeProposalStatus::Scheduled,
+    );
 
     env.events().publish(
         (symbol_short!("up_sch"), proposal_id),
@@ -132,13 +133,15 @@ pub fn cancel_upgrade(env: &Env, governance: &Address, proposal_id: u64) -> Resu
 
     match status {
         UpgradeProposalStatus::Scheduled | UpgradeProposalStatus::Ready => {
-            env.storage()
-                .instance()
-                .set(&UpgradeDataKey::UpgradeStatus(proposal_id), &UpgradeProposalStatus::Failed);
+            env.storage().instance().set(
+                &UpgradeDataKey::UpgradeStatus(proposal_id),
+                &UpgradeProposalStatus::Failed,
+            );
             env.storage()
                 .instance()
                 .remove(&UpgradeDataKey::PendingUpgrade(proposal_id));
-            env.events().publish((symbol_short!("up_can"), proposal_id), ());
+            env.events()
+                .publish((symbol_short!("up_can"), proposal_id), ());
             Ok(())
         }
         _ => Err(Error::UpgradeNotScheduled),
@@ -169,9 +172,10 @@ pub fn execute_upgrade(env: &Env, governance: &Address, proposal_id: u64) -> Res
         return Err(Error::TimelockActive);
     }
     if now > proposal.expiry_time {
-        env.storage()
-            .instance()
-            .set(&UpgradeDataKey::UpgradeStatus(proposal_id), &UpgradeProposalStatus::Failed);
+        env.storage().instance().set(
+            &UpgradeDataKey::UpgradeStatus(proposal_id),
+            &UpgradeProposalStatus::Failed,
+        );
         return Err(Error::ProposalExpired);
     }
 
@@ -180,15 +184,17 @@ pub fn execute_upgrade(env: &Env, governance: &Address, proposal_id: u64) -> Res
         return Err(Error::WasmHashMismatch);
     }
 
-    env.storage()
-        .instance()
-        .set(&UpgradeDataKey::UpgradeStatus(proposal_id), &UpgradeProposalStatus::Executing);
+    env.storage().instance().set(
+        &UpgradeDataKey::UpgradeStatus(proposal_id),
+        &UpgradeProposalStatus::Executing,
+    );
     env.storage()
         .instance()
         .set(&UpgradeDataKey::TargetWasmHash, &proposal.target_wasm_hash);
-    env.storage()
-        .instance()
-        .set(&UpgradeDataKey::MigrationPlanDigest, &proposal.migration_plan_digest);
+    env.storage().instance().set(
+        &UpgradeDataKey::MigrationPlanDigest,
+        &proposal.migration_plan_digest,
+    );
 
     env.events().publish(
         (symbol_short!("up_exe"), proposal_id),
@@ -205,14 +211,16 @@ pub fn finalize_upgrade(env: &Env, proposal_id: u64) -> Result<(), Error> {
         .get(&UpgradeDataKey::TargetWasmHash)
         .ok_or(Error::UpgradeNotFound)?;
 
-    env.deployer().update_current_contract_wasm(target_wasm_hash.clone());
+    env.deployer()
+        .update_current_contract_wasm(target_wasm_hash.clone());
 
     env.storage()
         .instance()
         .set(&UpgradeDataKey::CurrentWasmHash, &target_wasm_hash);
-    env.storage()
-        .instance()
-        .set(&UpgradeDataKey::UpgradeStatus(proposal_id), &UpgradeProposalStatus::Completed);
+    env.storage().instance().set(
+        &UpgradeDataKey::UpgradeStatus(proposal_id),
+        &UpgradeProposalStatus::Completed,
+    );
     env.storage()
         .instance()
         .remove(&UpgradeDataKey::TargetWasmHash);
@@ -264,7 +272,8 @@ pub fn start_migration(env: &Env, from_version: u32, to_version: u32) -> Result<
         .instance()
         .set(&UpgradeDataKey::MigrationState, &state);
 
-    env.events().publish((symbol_short!("mig_str"),), (from_version, to_version));
+    env.events()
+        .publish((symbol_short!("mig_str"),), (from_version, to_version));
     Ok(())
 }
 
@@ -280,8 +289,13 @@ pub fn advance_migration(env: &Env, cursor: u64, limit: u32) -> Result<Migration
         .instance()
         .set(&UpgradeDataKey::MigrationState, &state);
 
-    let chunk = MigrationChunk { cursor, limit, applied: 0 };
-    env.events().publish((symbol_short!("mig_adv"),), (cursor, limit));
+    let chunk = MigrationChunk {
+        cursor,
+        limit,
+        applied: 0,
+    };
+    env.events()
+        .publish((symbol_short!("mig_adv"),), (cursor, limit));
     Ok(chunk)
 }
 
