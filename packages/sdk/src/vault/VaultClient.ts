@@ -7,15 +7,25 @@ import {
   XdrLargeInt,
   scValToNative,
   xdr,
+  nativeToScVal,
 } from "@stellar/stellar-sdk";
-import { parseContractError, SpecMismatchError, SorobanSdkError } from "../errors";
+import {
+  ContractVersionMismatchError,
+  MigrationInProgressError,
+  parseContractError,
+  SpecMismatchError,
+  SorobanSdkError,
+  StorageVersionMismatchError,
+} from "../errors";
 import { YIELD_VAULT_SPEC_HASH } from "../generated/yield_vault";
 import { PreparedTransaction } from "../lifecycle";
 import type {
   DepositParams,
   EmergencyWithdrawParams,
   HarvestParams,
+  MigrationStatus,
   RebalanceParams,
+  UpgradeProposal,
   VaultConfig,
   VaultInfo,
   WithdrawParams,
@@ -34,6 +44,143 @@ export class VaultClient {
       allowHttp: config.rpcUrl.startsWith("http://"),
     });
   }
+
+  // ── Version compatibility checks ─────────────────────────────────────
+
+  async checkContractVersion(): Promise<void> {
+    if (!this.config.contractVersionPin) return;
+    const actual = await this.queryReadOnly<string>("contract_version");
+    if (actual !== this.config.contractVersionPin) {
+      throw new ContractVersionMismatchError(
+        "yield_vault",
+        this.config.contractVersionPin,
+        actual,
+      );
+    }
+  }
+
+  async checkStorageVersion(): Promise<void> {
+    if (!this.config.storageVersionPin) return;
+    const raw = await this.queryReadOnly<number>("storage_version");
+    const actual = Number(raw);
+    if (actual !== this.config.storageVersionPin) {
+      throw new StorageVersionMismatchError(
+        "yield_vault",
+        this.config.storageVersionPin,
+        actual,
+      );
+    }
+  }
+
+  async checkIsMigrating(): Promise<void> {
+    const migrating = await this.queryReadOnly<boolean>("is_migrating");
+    if (migrating) {
+      throw new MigrationInProgressError("yield_vault");
+    }
+  }
+
+  async checkAllVersions(): Promise<void> {
+    await this.checkContractVersion();
+    await this.checkStorageVersion();
+  }
+
+  // ── Upgrade & migration queries ──────────────────────────────────────
+
+  async getContractVersion(): Promise<string> {
+    return this.queryReadOnly<string>("contract_version");
+  }
+
+  async getStorageVersion(): Promise<number> {
+    const raw = await this.queryReadOnly<number>("storage_version");
+    return Number(raw);
+  }
+
+  async getMigrationStatus(): Promise<MigrationStatus | null> {
+    const raw = await this.queryReadOnly<any>("migration_status");
+    if (!raw) return null;
+    return {
+      fromVersion: Number(raw.from_version),
+      toVersion: Number(raw.to_version),
+      cursor: raw.cursor.toString(),
+      totalApplied: Number(raw.total_applied),
+      complete: raw.complete,
+    } as MigrationStatus;
+  }
+
+  async isMigrating(): Promise<boolean> {
+    return this.queryReadOnly<boolean>("is_migrating");
+  }
+
+  // ── Upgrade actions (governance-gated) ────────────────────────────────
+
+  async prepareUpgrade(
+    governance: string,
+    targetWasmHash: string,
+    migrationPlanDigest: string,
+    migrationId: string,
+    timelockSeconds: string,
+  ): Promise<PreparedTransaction<string>> {
+    return this.prepareStateCall(
+      "upgrade",
+      [
+        Address.fromString(governance).toScVal(),
+        nativeToScVal(targetWasmHash, { type: "bytesN", len: 32 }),
+        nativeToScVal(migrationPlanDigest, { type: "bytesN", len: 32 }),
+        nativeToScVal(migrationId, { type: "string" }),
+        nativeToScVal(timelockSeconds, { type: "u64" }),
+      ],
+      governance,
+      (val) => val.toString(),
+    );
+  }
+
+  async prepareExecuteUpgrade(
+    governance: string,
+    proposalId: string,
+  ): Promise<PreparedTransaction<void>> {
+    return this.prepareStateCall(
+      "execute_upgrade",
+      [
+        Address.fromString(governance).toScVal(),
+        nativeToScVal(proposalId, { type: "u64" }),
+      ],
+      governance,
+    );
+  }
+
+  async prepareFinalizeUpgrade(
+    governance: string,
+    proposalId: string,
+  ): Promise<PreparedTransaction<void>> {
+    return this.prepareStateCall(
+      "finalize_upgrade",
+      [
+        nativeToScVal(proposalId, { type: "u64" }),
+      ],
+      governance,
+    );
+  }
+
+  async prepareMigrate(
+    governance: string,
+    fromVersion: number,
+    toVersion: number,
+    cursor: string,
+    limit: number,
+  ): Promise<PreparedTransaction<any>> {
+    return this.prepareStateCall(
+      "migrate",
+      [
+        nativeToScVal(fromVersion, { type: "u32" }),
+        nativeToScVal(toVersion, { type: "u32" }),
+        nativeToScVal(cursor, { type: "u64" }),
+        nativeToScVal(limit, { type: "u32" }),
+      ],
+      governance,
+    );
+  }
+
+  // ── Original methods ─────────────────────────────────────────────────
 
   public get deposit() {
     return {
