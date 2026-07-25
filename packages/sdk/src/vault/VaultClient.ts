@@ -1,3 +1,4 @@
+import { Buffer } from "buffer";
 import {
   Account,
   Address,
@@ -7,7 +8,6 @@ import {
   XdrLargeInt,
   scValToNative,
   xdr,
-  nativeToScVal,
 } from "@stellar/stellar-sdk";
 import {
   ContractVersionMismatchError,
@@ -120,14 +120,16 @@ export class VaultClient {
     migrationId: string,
     timelockSeconds: string,
   ): Promise<PreparedTransaction<string>> {
+    const wasmHashBytes = Buffer.from(targetWasmHash, "hex");
+    const planDigestBytes = Buffer.from(migrationPlanDigest, "hex");
     return this.prepareStateCall(
       "upgrade",
       [
         Address.fromString(governance).toScVal(),
-        nativeToScVal(targetWasmHash, { type: "bytesN", len: 32 }),
-        nativeToScVal(migrationPlanDigest, { type: "bytesN", len: 32 }),
-        nativeToScVal(migrationId, { type: "string" }),
-        nativeToScVal(timelockSeconds, { type: "u64" }),
+        xdr.ScVal.scvBytes(wasmHashBytes),
+        xdr.ScVal.scvBytes(planDigestBytes),
+        xdr.ScVal.scvString(migrationId),
+        new XdrLargeInt("u64", timelockSeconds).toScVal(),
       ],
       governance,
       (val) => val.toString(),
@@ -142,7 +144,7 @@ export class VaultClient {
       "execute_upgrade",
       [
         Address.fromString(governance).toScVal(),
-        nativeToScVal(proposalId, { type: "u64" }),
+        new XdrLargeInt("u64", proposalId).toScVal(),
       ],
       governance,
     );
@@ -155,7 +157,7 @@ export class VaultClient {
     return this.prepareStateCall(
       "finalize_upgrade",
       [
-        nativeToScVal(proposalId, { type: "u64" }),
+        new XdrLargeInt("u64", proposalId).toScVal(),
       ],
       governance,
     );
@@ -171,10 +173,10 @@ export class VaultClient {
     return this.prepareStateCall(
       "migrate",
       [
-        nativeToScVal(fromVersion, { type: "u32" }),
-        nativeToScVal(toVersion, { type: "u32" }),
-        nativeToScVal(cursor, { type: "u64" }),
-        nativeToScVal(limit, { type: "u32" }),
+        xdr.ScVal.scvU32(fromVersion),
+        xdr.ScVal.scvU32(toVersion),
+        new XdrLargeInt("u64", cursor).toScVal(),
+        xdr.ScVal.scvU32(limit),
       ],
       governance,
     );
